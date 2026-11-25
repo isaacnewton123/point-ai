@@ -1,15 +1,34 @@
 {
-  "name": "app",
-  "version": "1.0.50",
+  "name": "point-ai",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "web": "bun run src/index.ts --web-only",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "build": "bun run lint && bun run typecheck",
+    "test": "bun test"
   },
   "dependencies": {
-    "elysia": "latest"
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.21",
+    "elysia": "latest",
+    "pg": "^8.23.1",
+    "pino": "^10.4.0",
+    "qrcode-terminal": "^0.12.0"
   },
   "devDependencies": {
-    "bun-types": "latest"
+    "@types/pg": "^8.23.1",
+    "@types/qrcode-terminal": "^0.12.2",
+    "@typescript-eslint/parser": "^8.74.0",
+    "bun-types": "latest",
+    "eslint": "^9",
+    "eslint-plugin-ai-guardrails": "^1.3.2",
+    "typescript": "^5",
+    "typescript-eslint": "^8.74.0"
   },
   "module": "src/index.js"
 }

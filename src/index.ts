@@ -1,7 +1,38 @@
-import { Elysia } from "elysia";
+import { getConfig } from './config'
+import { buatPool } from './db'
+import { buatServer } from './server'
+import { mulaiWhatsApp, type WaController } from './wa/client'
 
-const app = new Elysia().get("/", () => "Hello Elysia").listen(3000);
+const config = getConfig()
+const pool = buatPool(config.databaseUrl)
+let wa: WaController | null = null
 
-console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
-);
+const app = buatServer({
+  pool,
+  formBaseUrl: config.formBaseUrl,
+  getWaStatus: () => wa?.status() ?? (config.webOnly ? 'web_only' : 'starting'),
+})
+
+app.listen(config.port)
+console.log(`[Server] Health API berjalan di http://localhost:${config.port}/health (Formulir: ${config.formBaseUrl}/formulir)`)
+
+if (!config.webOnly) {
+  wa = await mulaiWhatsApp({ config, pool })
+} else {
+  console.log('[WA] Mode --web-only aktif, koneksi WhatsApp dilewati.')
+}
+
+async function shutdown(sinyal: string) {
+  console.log(`\n[App] Menerima ${sinyal}, menutup koneksi...`)
+  wa?.tutup()
+  try {
+    await app.stop()
+  } catch {
+    // Abaikan
+  }
+  await pool.end()
+  process.exit(0)
+}
+
+process.on('SIGINT', () => void shutdown('SIGINT'))
+process.on('SIGTERM', () => void shutdown('SIGTERM'))

@@ -1,0 +1,16 @@
+services:
+  point-ai:
+    build: .
+    container_name: point-ai
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./auth:/app/auth
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
