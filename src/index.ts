@@ -10,7 +10,10 @@ let wa: WaController | null = null
 const app = buatServer({
   pool,
   formBaseUrl: config.formBaseUrl,
+  formSecret: config.formSecret,
   getWaStatus: () => wa?.status() ?? (config.webOnly ? 'web_only' : 'starting'),
+  simulasiJapri: (nomor) =>
+    wa ? wa.simulasiJapri(nomor) : Promise.resolve({ ok: false, pesan: 'WhatsApp belum aktif.' }),
 })
 
 app.listen(config.port)

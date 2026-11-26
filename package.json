@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
-    "@whiskeysockets/baileys": "^6.7.21",
+    "@whiskeysockets/baileys": "7.0.0-rc14",
     "elysia": "latest",
     "pg": "^8.23.1",
     "pino": "^10.4.0",

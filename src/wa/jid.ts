@@ -93,6 +93,14 @@ export async function selesaikanNomorPeserta(
     return langsung
   }
   if (lid && state.lidKeNomor.has(lid)) return state.lidKeNomor.get(lid)!
+  if (lid && lid.endsWith('@lid')) {
+    const pn = await aktif.signalRepository?.lidMapping?.getPNForLID(lid).catch(() => null)
+    const dariStore = jidKeNomorLangsung(pn)
+    if (dariStore) {
+      state.lidKeNomor.set(lid, dariStore)
+      return dariStore
+    }
+  }
   if (grupJid) {
     await muatMetadataGrup(aktif, state, grupJid, true)
     if (lid && state.lidKeNomor.has(lid)) return state.lidKeNomor.get(lid)!

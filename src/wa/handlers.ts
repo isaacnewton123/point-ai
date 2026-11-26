@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { ParticipantAction, WAMessage, WASocket } from '@whiskeysockets/baileys'
+import type { GroupParticipant, ParticipantAction, WAMessage, WASocket } from '@whiskeysockets/baileys'
 import { buatPengumumanKeluar, buatSambutanMasuk, jawabPesan, type AiDeps } from '../ai/agent'
 import type { AppConfig } from '../config'
 import { catatPesan, tandaiKeluarGrup, tandaiMasukGrup, type PoolDb } from '../db'
@@ -93,17 +93,19 @@ async function prosesPesertaMasuk(
 
 export async function tanganiPerubahanPeserta(
   deps: HandlerDeps,
-  ev: { id: string; participants: string[]; action: ParticipantAction },
+  ev: { id: string; participants: (string | GroupParticipant)[]; action: ParticipantAction },
 ): Promise<void> {
   if (deps.config.grupJid && ev.id !== deps.config.grupJid) return
   if (ev.action !== 'add' && ev.action !== 'remove') return
 
   await deps.antreanChat.jalankan(ev.id, async () => {
     await muatMetadataGrup(deps.aktif, deps.state, ev.id, true)
-    for (const pJid of ev.participants) {
-      const bersihJid = bersihkanJidUser(pJid) ?? pJid
+    for (const peserta of ev.participants) {
+      const rawId = typeof peserta === 'string' ? peserta : peserta.id
+      const altJid = typeof peserta === 'string' ? null : (peserta.phoneNumber ?? null)
+      const bersihJid = bersihkanJidUser(rawId) ?? rawId
       if (apakahJidBot(bersihJid, deps.aktif)) continue
-      const nomor = await selesaikanNomorPeserta(deps.aktif, deps.state, bersihJid, null, ev.id)
+      const nomor = await selesaikanNomorPeserta(deps.aktif, deps.state, bersihJid, altJid, ev.id)
       if (ev.action === 'remove') await prosesPesertaKeluar(deps, ev.id, bersihJid, nomor)
       else await prosesPesertaMasuk(deps, ev.id, bersihJid, nomor)
     }
@@ -198,6 +200,7 @@ async function prosesPesanMasuk(
     chatKey, arah: 'masuk', jenis: isi.jenis, isi: isi.teks, waMessageId: msg.key.id ?? `in-${randomUUID()}`,
   })
   if (!baruMasuk) return
+  console.log(`[WA] Pesan masuk (${isGroup ? 'grup' : 'DM'}) dari ${senderNomor ?? pengirimJid}: "${(isi.teks ?? isi.jenis).slice(0, 60)}"`)
 
   const balasan = await siapkanBalasan(deps, {
     isi, teksBersih: hapusTag(isi.teks ?? ''), chatKey, senderNomor,
@@ -207,6 +210,7 @@ async function prosesPesanMasuk(
     jid, teks: balasan, mentions: isGroup && pengirimJid ? [pengirimJid] : undefined,
     quoted: isGroup ? msg : undefined, readKey: msg.key,
   })
+  console.log(`[WA] Balasan terkirim ke ${chatKey} (${balasan.length} karakter)`)
   await catatPesan(deps.pool, {
     chatKey, arah: 'keluar', jenis: 'teks', isi: balasan, waMessageId: outId ?? `out-${randomUUID()}`,
   })

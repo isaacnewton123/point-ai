@@ -1,5 +1,6 @@
 import { ambilRiwayatChat, type PoolDb } from '../db'
 import { LABEL_KOLOM, type KolomWajib } from '../validasi'
+import { ATURAN_FORMAT_WA, formatKeWhatsApp } from './format-wa'
 import { jalankanTool, TOOL_DEFINITIONS, type DbRepo, type ToolContext } from './tools'
 
 const NIM_ENDPOINT = 'https://integrate.api.nvidia.com/v1/chat/completions'
@@ -24,7 +25,7 @@ export type AiDeps = {
   formSecret: string
   fetchFn?: typeof fetch
   db?: DbRepo
-  mulaiJapri?: (limit?: number) => Promise<{ ok: boolean; pesan: string }>
+  mulaiJapri?: (limit?: number, nomorTarget?: string) => Promise<{ ok: boolean; pesan: string }>
 }
 
 export type JawabInput = {
@@ -38,12 +39,8 @@ export type JawabInput = {
 }
 
 export function bersihkanJawaban(teks: string): string {
-  return teks
-    .replace(/<think>[\s\S]*?<\/think>/gi, '')
-    .trim()
-    .replace(/^["']+|["']+$/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
+  const tanpaThink = teks.replace(/<think>[\s\S]*?<\/think>/gi, '').trim().replace(/^["']+|["']+$/g, '')
+  return formatKeWhatsApp(tanpaThink)
 }
 
 function waktuWibSekarang(): string {
@@ -134,6 +131,7 @@ function buatSystemPrompt(input: JawabInput): string {
     '5. Untuk melengkapi data via WA, utamakan minta anggota membalas langsung di chat ini (lebih mudah untuk mereka). Tautan formulir (`buat_link_formulir`) hanya dipakai untuk undangan pendaftaran anggota baru atau jika anggota memang memintanya.',
     '6. Gunakan bahasa Indonesia sehari-hari yang ringkas dan enak dibaca di HP. Hindari istilah teknis seperti SQL, JSON, tool, `DATA_KURANG`, `LENGKAP`, atau `tipe_warna_unit`.',
     '7. Fitur `mulai_japri_kurang` hanya boleh dipanggil bila pengurus/admin yang meminta.',
+    `8. ${ATURAN_FORMAT_WA}`,
     '',
     `Konteks saat ini:`,
     `- Waktu WIB: ${waktuWibSekarang()}`,
@@ -187,7 +185,7 @@ async function jalankanPutaranAi(
   for (let putaran = 0; putaran < 5; putaran += 1) {
     const res = await panggilNim({
       apiKey: deps.apiKey, model: deps.model, fallbackModel: deps.fallbackModel,
-      messages, tools: TOOL_DEFINITIONS, temperature: 0.4, maxTokens: 900, fetchFn: deps.fetchFn,
+      messages, tools: TOOL_DEFINITIONS, temperature: 0.4, maxTokens: 3000, fetchFn: deps.fetchFn,
     })
     if (res.tool_calls && res.tool_calls.length > 0) {
       messages.push({ role: 'assistant', content: res.content || null, tool_calls: res.tool_calls })
@@ -200,7 +198,7 @@ async function jalankanPutaranAi(
   }
   const penutup = await panggilNim({
     apiKey: deps.apiKey, model: deps.model, fallbackModel: deps.fallbackModel,
-    messages, temperature: 0.4, maxTokens: 700, fetchFn: deps.fetchFn,
+    messages, temperature: 0.4, maxTokens: 2500, fetchFn: deps.fetchFn,
   })
   return bersihkanJawaban(penutup.content) || null
 }

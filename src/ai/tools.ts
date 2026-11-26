@@ -56,7 +56,7 @@ export type ToolContext = {
   isGroup: boolean
   formBaseUrl: string
   formSecret: string
-  mulaiJapri?: (limit?: number) => Promise<{ ok: boolean; pesan: string }>
+  mulaiJapri?: (limit?: number, nomorTarget?: string) => Promise<{ ok: boolean; pesan: string }>
   db?: DbRepo
 }
 
@@ -146,7 +146,8 @@ async function handleMulaiJapri(args: Record<string, unknown>, ctx: ToolContext)
   }
   if (!ctx.mulaiJapri) return JSON.stringify({ ok: false, alasan: 'Fitur japri tidak aktif pada mode saat ini (web-only).' })
   const limit = typeof args.limit === 'number' ? Math.max(1, Math.floor(args.limit)) : 5
-  return JSON.stringify(await ctx.mulaiJapri(limit))
+  const nomorTarget = typeof args.nomor_target === 'string' && args.nomor_target.trim() ? args.nomor_target.trim() : undefined
+  return JSON.stringify(await ctx.mulaiJapri(limit, nomorTarget))
 }
 
 export async function jalankanTool(nama: string, args: Record<string, unknown>, ctx: ToolContext): Promise<string> {

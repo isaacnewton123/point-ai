@@ -185,6 +185,10 @@ export const TOOL_DEFINITIONS = [
             type: 'number',
             description: 'Maksimal jumlah anggota yang dihubungi pada sesi ini (default 5).',
           },
+          nomor_target: {
+            type: 'string',
+            description: 'Opsional: nomor WA spesifik untuk kirim langsung atau simulasi japri satu orang.',
+          },
         },
         required: [],
       },

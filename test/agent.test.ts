@@ -72,9 +72,32 @@ function buatMockFetch() {
   return { fn, getCount: () => callCount }
 }
 
-test('bersihkanJawaban membuang blok <think> dan merapikan spasi', () => {
+test('bersihkanJawaban membuang blok <think> dan merapikan format WhatsApp', () => {
   const mentah = '<think>berpikir panjang</think>\n\nHalo kak, datanya sudah lengkap ya.\n\n\nSilakan dicek.'
   expect(bersihkanJawaban(mentah)).toBe('Halo kak, datanya sudah lengkap ya.\n\nSilakan dicek.')
+})
+
+test('bersihkanJawaban mengubah Markdown ke format resmi WhatsApp tanpa merusak format WA asli', () => {
+  const markdown = [
+    '### Daftar Member',
+    '---',
+    '**Total: 26 orang** dengan _catatan khusus_ dan ~lama~ *_kombinasi_*',
+    '* Cek [Formulir](https://point-karawang.netlify.app/formulir)',
+    '1. Simpan plat `T 1590 BE` atau ```KODE123```',
+    '> Kutipan resmi',
+  ].join('\n')
+  const hasil = bersihkanJawaban(markdown)
+  expect(hasil).toContain('*Daftar Member*')
+  expect(hasil).toContain('*Total: 26 orang*')
+  expect(hasil).toContain('_catatan khusus_')
+  expect(hasil).toContain('~lama~')
+  expect(hasil).toContain('*_kombinasi_*')
+  expect(hasil).toContain('- Cek Formulir: https://point-karawang.netlify.app/formulir')
+  expect(hasil).toContain('1. Simpan plat `T 1590 BE` atau ```KODE123```')
+  expect(hasil).toContain('> Kutipan resmi')
+  expect(hasil).not.toContain('###')
+  expect(hasil).not.toContain('---')
+  expect(hasil).not.toContain('**')
 })
 
 test('non-admin ditolak untuk mulai_japri_kurang, setujui/tolak pendaftar, dan tidak bisa mengubah data orang lain', async () => {

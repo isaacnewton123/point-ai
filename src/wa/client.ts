@@ -20,13 +20,14 @@ import { jidKeNomorLangsung, type WaState } from './jid'
 export type WaController = {
   status: () => string
   tutup: () => void
+  simulasiJapri: (nomor: string) => Promise<{ ok: boolean; pesan: string }>
 }
 
 function buatAiDeps(aktif: WASocket, opsi: { config: AppConfig; pool: PoolDb; aiDepsBase: AiDeps; antreanChat: AntreanChat }): AiDeps {
   const botNomor = jidKeNomorLangsung(aktif.user?.id)
   return {
     ...opsi.aiDepsBase,
-    mulaiJapri: (limit?: number) =>
+    mulaiJapri: (limit?: number, nomorTarget?: string) =>
       jalankanJapriKurang({
         sock: aktif,
         pool: opsi.pool,
@@ -37,6 +38,7 @@ function buatAiDeps(aktif: WASocket, opsi: { config: AppConfig; pool: PoolDb; ai
         jedaDetik: opsi.config.jedaKirimDetik,
         maxHarian: opsi.config.maxJapriHarian,
         limit,
+        nomorTarget,
         kecualiNomor: botNomor,
       }),
   }
@@ -59,10 +61,47 @@ function tanganiKoneksi(
     const code = (update.lastDisconnect?.error as Boom | undefined)?.output?.statusCode
     const loggedOut = code === DisconnectReason.loggedOut
     kontrol.setStatus(loggedOut ? 'logged_out' : 'disconnected')
-    console.warn(`[WA] Koneksi terputus (kode=${code ?? 'unknown'})`)
+    console.log(`[WA] Koneksi terputus (kode=${code ?? 'unknown'})`)
     if (!loggedOut && !kontrol.isDitutup()) {
       setTimeout(kontrol.sambungUlang, 3500)
     }
+  }
+}
+
+function pasangEventWa(
+  aktif: WASocket,
+  handlerDeps: HandlerDeps,
+  saveCreds: () => Promise<void>,
+  kontrol: { setStatus: (s: string) => void; isDitutup: () => boolean; sambungUlang: () => void },
+): void {
+  aktif.ev.on('creds.update', saveCreds)
+  aktif.ev.on('connection.update', (u) => tanganiKoneksi(u, aktif, kontrol))
+  aktif.ev.on('group-participants.update', (ev) => {
+    void tanganiPerubahanPeserta(handlerDeps, ev).catch((err) =>
+      console.error('[WA] Error peserta grup:', err instanceof Error ? err.message : err),
+    )
+  })
+  aktif.ev.on('messages.upsert', (u) => {
+    void tanganiPesanUpsert(handlerDeps, u).catch((err) =>
+      console.error('[WA] Error pesan masuk:', err instanceof Error ? err.message : err),
+    )
+  })
+}
+
+function buatSimulasiRunner(
+  getCtx: () => { sock: WASocket | null; status: string },
+  opsi: { config: AppConfig; pool: PoolDb; aiDepsBase: AiDeps; antreanChat: AntreanChat },
+) {
+  return (nomor: string) => {
+    const { sock, status } = getCtx()
+    if (!sock || status !== 'connected') {
+      return Promise.resolve({ ok: false, pesan: `WhatsApp belum tersambung (${status}).` })
+    }
+    return jalankanJapriKurang({
+      sock, pool: opsi.pool, aiDeps: opsi.aiDepsBase, antreanChat: opsi.antreanChat,
+      formBaseUrl: opsi.config.formBaseUrl, formSecret: opsi.config.formSecret,
+      jedaDetik: 0, maxHarian: opsi.config.maxJapriHarian, nomorTarget: nomor,
+    })
   }
 }
 
@@ -90,22 +129,18 @@ export async function mulaiWhatsApp(opsi: { config: AppConfig; pool: PoolDb }): 
     const aktif = makeWASocket({
       version, auth: authState, logger: pino({ level: 'silent' }),
       markOnlineOnConnect: false, syncFullHistory: false,
+      cachedGroupMetadata: async (jid) => state.grupCache.get(jid),
     })
     sock = aktif
     const handlerDeps: HandlerDeps = {
       aktif, state, config: opsi.config, pool: opsi.pool,
       aiDepsBase, aiDepsAktif: buatAiDeps(aktif, { ...opsi, aiDepsBase, antreanChat }), antreanChat,
     }
-    aktif.ev.on('creds.update', saveCreds)
-    aktif.ev.on('connection.update', (u) =>
-      tanganiKoneksi(u, aktif, {
-        setStatus: (s) => { statusSaatIni = s },
-        isDitutup: () => ditutup,
-        sambungUlang: () => void sambung(),
-      }),
-    )
-    aktif.ev.on('group-participants.update', (ev) => void tanganiPerubahanPeserta(handlerDeps, ev))
-    aktif.ev.on('messages.upsert', (u) => void tanganiPesanUpsert(handlerDeps, u))
+    pasangEventWa(aktif, handlerDeps, saveCreds, {
+      setStatus: (s) => { statusSaatIni = s },
+      isDitutup: () => ditutup,
+      sambungUlang: () => void sambung(),
+    })
   }
 
   await sambung()
@@ -115,5 +150,8 @@ export async function mulaiWhatsApp(opsi: { config: AppConfig; pool: PoolDb }): 
       ditutup = true
       try { sock?.end(undefined) } catch { /* ignore */ }
     },
+    simulasiJapri: buatSimulasiRunner(() => ({ sock, status: statusSaatIni }), {
+      ...opsi, aiDepsBase, antreanChat,
+    }),
   }
 }
