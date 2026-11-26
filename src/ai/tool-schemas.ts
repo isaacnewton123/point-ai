@@ -175,19 +175,20 @@ export const TOOL_DEFINITIONS = [
   {
     type: 'function' as const,
     function: {
-      name: 'mulai_japri_kurang',
+      name: 'ingatkan_di_grup',
       description:
-        'KHUSUS PENGURUS/ADMIN: memulai japri santai bertahap lewat chat WA langsung (tanpa link formulir) ke anggota yang datanya belum lengkap agar balasannya diekstrak AI ke database.',
+        'KHUSUS PENGURUS/ADMIN: mengirim 1 pesan pengingat di grup WhatsApp dengan @mention anggota yang datanya masih kurang beserta link formulir resmi (aman, tanpa japri keluar/cold DM).',
       parameters: {
         type: 'object',
         properties: {
           limit: {
             type: 'number',
-            description: 'Maksimal jumlah anggota yang dihubungi pada sesi ini (default 5).',
+            description: 'Maksimal jumlah anggota yang di-tag pada pengingat kali ini (default 10, maksimal 30).',
           },
-          nomor_target: {
+          filter: {
             type: 'string',
-            description: 'Opsional: nomor WA spesifik untuk kirim langsung atau simulasi japri satu orang.',
+            enum: ['semua', 'sebagian', 'kosong_total'],
+            description: 'Filter anggota kurang data: semua, sebagian (kurang 1-4 kolom), atau kosong_total.',
           },
         },
         required: [],

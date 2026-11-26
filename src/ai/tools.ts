@@ -48,15 +48,22 @@ export const defaultDbRepo: DbRepo = {
   simpanDataAnggota, riwayatPeristiwa, daftarPendaftar, setujuiPendaftar, tolakPendaftar,
 }
 
+export type IngatkanGrupInput = {
+  grupJid: string | null
+  limit?: number
+  filter?: 'semua' | 'sebagian' | 'kosong_total'
+}
+
 export type ToolContext = {
   pool: PoolDb
+  chatKey?: string
   senderNomor: string | null
   senderNama: string | null
   isAdmin: boolean
   isGroup: boolean
   formBaseUrl: string
   formSecret: string
-  mulaiJapri?: (limit?: number, nomorTarget?: string) => Promise<{ ok: boolean; pesan: string }>
+  ingatkanDiGrup?: (opsi: IngatkanGrupInput) => Promise<{ ok: boolean; pesan: string }>
   db?: DbRepo
 }
 
@@ -140,14 +147,14 @@ async function handlePendaftarAksi(
   return JSON.stringify({ ok, alasan: ok ? undefined : `Pendaftar ${norm} berstatus menunggu tidak ditemukan.` })
 }
 
-async function handleMulaiJapri(args: Record<string, unknown>, ctx: ToolContext) {
+async function handleIngatkanDiGrup(args: Record<string, unknown>, ctx: ToolContext) {
   if (!ctx.isAdmin) {
-    return JSON.stringify({ ok: false, alasan: 'Hanya pengurus/admin grup yang dapat memerintahkan pengiriman japri bertahap.' })
+    return JSON.stringify({ ok: false, alasan: 'Hanya pengurus/admin grup yang dapat mengirim pengingat ke grup.' })
   }
-  if (!ctx.mulaiJapri) return JSON.stringify({ ok: false, alasan: 'Fitur japri tidak aktif pada mode saat ini (web-only).' })
-  const limit = typeof args.limit === 'number' ? Math.max(1, Math.floor(args.limit)) : 5
-  const nomorTarget = typeof args.nomor_target === 'string' && args.nomor_target.trim() ? args.nomor_target.trim() : undefined
-  return JSON.stringify(await ctx.mulaiJapri(limit, nomorTarget))
+  if (!ctx.ingatkanDiGrup) return JSON.stringify({ ok: false, alasan: 'Fitur pengingat grup tidak aktif pada mode saat ini (web-only).' })
+  const limit = typeof args.limit === 'number' ? Math.max(1, Math.min(Math.floor(args.limit), 30)) : 10
+  const filter = args.filter === 'sebagian' || args.filter === 'kosong_total' ? args.filter : 'semua'
+  return JSON.stringify(await ctx.ingatkanDiGrup({ grupJid: ctx.isGroup ? (ctx.chatKey ?? null) : null, limit, filter }))
 }
 
 export async function jalankanTool(nama: string, args: Record<string, unknown>, ctx: ToolContext): Promise<string> {
@@ -177,6 +184,6 @@ export async function jalankanTool(nama: string, args: Record<string, unknown>, 
   }
   if (nama === 'setujui_pendaftar') return handlePendaftarAksi('setujui', args, ctx, db)
   if (nama === 'tolak_pendaftar') return handlePendaftarAksi('tolak', args, ctx, db)
-  if (nama === 'mulai_japri_kurang') return handleMulaiJapri(args, ctx)
+  if (nama === 'ingatkan_di_grup') return handleIngatkanDiGrup(args, ctx)
   return JSON.stringify({ ok: false, alasan: `Tool "${nama}" tidak dikenal.` })
 }

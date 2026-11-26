@@ -46,9 +46,9 @@ function buatMockRepo(): { repo: DbRepo; lastSavedNomor: () => string | null } {
 
 function buatCtx(isAdmin: boolean, repo: DbRepo): ToolContext {
   return {
-    pool: {} as PoolDb, senderNomor: '+628111111111', senderNama: isAdmin ? 'Admin' : 'Budi',
+    pool: {} as PoolDb, chatKey: '120363000@g.us', senderNomor: '+628111111111', senderNama: isAdmin ? 'Admin' : 'Budi',
     isAdmin, isGroup: true, formBaseUrl: 'https://point-karawang.netlify.app', formSecret: 'secret',
-    mulaiJapri: async (limit) => ({ ok: true, pesan: `Mulai ${limit}` }), db: repo,
+    ingatkanDiGrup: async ({ limit }) => ({ ok: true, pesan: `Pengingat ${limit ?? 10}` }), db: repo,
   }
 }
 
@@ -100,21 +100,21 @@ test('bersihkanJawaban mengubah Markdown ke format resmi WhatsApp tanpa merusak 
   expect(hasil).not.toContain('**')
 })
 
-test('non-admin ditolak untuk mulai_japri_kurang, setujui/tolak pendaftar, dan tidak bisa mengubah data orang lain', async () => {
+test('non-admin ditolak untuk ingatkan_di_grup, setujui/tolak pendaftar, dan tidak bisa mengubah data orang lain', async () => {
   const { repo, lastSavedNomor } = buatMockRepo()
   const ctx = buatCtx(false, repo)
-  expect((JSON.parse(await jalankanTool('mulai_japri_kurang', { limit: 3 }, ctx)) as { ok: boolean }).ok).toBe(false)
+  expect((JSON.parse(await jalankanTool('ingatkan_di_grup', { limit: 3 }, ctx)) as { ok: boolean }).ok).toBe(false)
   expect((JSON.parse(await jalankanTool('setujui_pendaftar', { nomor: '081299998888' }, ctx)) as { ok: boolean }).ok).toBe(false)
   expect((JSON.parse(await jalankanTool('tolak_pendaftar', { nomor: '081299998888' }, ctx)) as { ok: boolean }).ok).toBe(false)
   await jalankanTool('simpan_data_diri', { nomor_target: '+628999999999', plat: 'T 9999 ZZ' }, ctx)
   expect(lastSavedNomor()).toBe('+628111111111')
 })
 
-test('admin dapat menjalankan mulai_japri_kurang dan setujui/tolak pendaftar', async () => {
+test('admin dapat menjalankan ingatkan_di_grup dan setujui/tolak pendaftar', async () => {
   const { repo } = buatMockRepo()
   const ctx = buatCtx(true, repo)
-  const japri = JSON.parse(await jalankanTool('mulai_japri_kurang', { limit: 4 }, ctx)) as { ok: boolean; pesan: string }
-  expect(japri).toEqual({ ok: true, pesan: 'Mulai 4' })
+  const ingat = JSON.parse(await jalankanTool('ingatkan_di_grup', { limit: 4 }, ctx)) as { ok: boolean; pesan: string }
+  expect(ingat).toEqual({ ok: true, pesan: 'Pengingat 4' })
   const acc = JSON.parse(await jalankanTool('setujui_pendaftar', { nomor: '081299998888' }, ctx)) as { ok: boolean; anggota: { nomor: string } }
   expect(acc.ok).toBe(true)
   expect(acc.anggota.nomor).toBe('+6281299998888')

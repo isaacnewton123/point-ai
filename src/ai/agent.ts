@@ -1,7 +1,7 @@
 import { ambilRiwayatChat, type PoolDb } from '../db'
 import { LABEL_KOLOM, type KolomWajib } from '../validasi'
 import { ATURAN_FORMAT_WA, formatKeWhatsApp } from './format-wa'
-import { jalankanTool, TOOL_DEFINITIONS, type DbRepo, type ToolContext } from './tools'
+import { jalankanTool, TOOL_DEFINITIONS, type DbRepo, type IngatkanGrupInput, type ToolContext } from './tools'
 
 const NIM_ENDPOINT = 'https://integrate.api.nvidia.com/v1/chat/completions'
 
@@ -25,7 +25,7 @@ export type AiDeps = {
   formSecret: string
   fetchFn?: typeof fetch
   db?: DbRepo
-  mulaiJapri?: (limit?: number, nomorTarget?: string) => Promise<{ ok: boolean; pesan: string }>
+  ingatkanDiGrup?: (opsi: IngatkanGrupInput) => Promise<{ ok: boolean; pesan: string }>
 }
 
 export type JawabInput = {
@@ -128,9 +128,9 @@ function buatSystemPrompt(input: JawabInput): string {
     '2. Untuk semua fakta tentang anggota, SELALU panggil tool database terlebih dahulu. Dilarang keras mengarang angka, nama, nomor, atau status.',
     '3. Sampaikan angka dan data persis sesuai hasil tool terbaru.',
     '4. Jika anggota menuliskan atau melengkapi data dirinya lewat chat (sekaligus maupun dicicil), ekstrak lalu panggil tool `simpan_data_diri`. Jika ada isian yang ditolak validasi, jelaskan dengan santai bagian yang perlu diperbaiki.',
-    '5. Untuk melengkapi data via WA, utamakan minta anggota membalas langsung di chat ini (lebih mudah untuk mereka). Tautan formulir (`buat_link_formulir`) hanya dipakai untuk undangan pendaftaran anggota baru atau jika anggota memang memintanya.',
+    '5. Agar akun WA aman, JANGAN pernah menjanjikan japri keluar duluan. Arahkan anggota mengisi link formulir (`buat_link_formulir`) atau balas langsung lewat chat jika anggota sendiri yang menghubungi bot.',
     '6. Gunakan bahasa Indonesia sehari-hari yang ringkas dan enak dibaca di HP. Hindari istilah teknis seperti SQL, JSON, tool, `DATA_KURANG`, `LENGKAP`, atau `tipe_warna_unit`.',
-    '7. Fitur `mulai_japri_kurang` hanya boleh dipanggil bila pengurus/admin yang meminta.',
+    '7. Fitur `ingatkan_di_grup` hanya boleh dipanggil bila pengurus/admin yang meminta.',
     `8. ${ATURAN_FORMAT_WA}`,
     '',
     `Konteks saat ini:`,
@@ -209,10 +209,10 @@ export async function jawabPesan(input: JawabInput, deps: AiDeps): Promise<strin
     : []
   const messages = susunMessages(buatSystemPrompt(input), riwayat, input.teks)
   const toolCtx: ToolContext = {
-    pool: deps.pool, senderNomor: input.senderNomor, senderNama: input.senderNama,
+    pool: deps.pool, chatKey: input.chatKey, senderNomor: input.senderNomor, senderNama: input.senderNama,
     isAdmin: input.isAdmin, isGroup: input.isGroup,
     formBaseUrl: deps.formBaseUrl, formSecret: deps.formSecret,
-    mulaiJapri: deps.mulaiJapri, db: deps.db,
+    ingatkanDiGrup: deps.ingatkanDiGrup, db: deps.db,
   }
   try {
     const hasil = await jalankanPutaranAi(messages, toolCtx, deps)

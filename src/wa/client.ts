@@ -12,33 +12,33 @@ import qrcode from 'qrcode-terminal'
 import type { AiDeps } from '../ai/agent'
 import type { AppConfig } from '../config'
 import type { PoolDb } from '../db'
-import { jalankanJapriKurang } from './antrean'
 import { tanganiPerubahanPeserta, tanganiPesanUpsert, type HandlerDeps } from './handlers'
 import { AntreanChat } from './human'
 import { jidKeNomorLangsung, type WaState } from './jid'
+import { kirimPengingatGrup } from './pengingat'
 
 export type WaController = {
   status: () => string
   tutup: () => void
-  simulasiJapri: (nomor: string) => Promise<{ ok: boolean; pesan: string }>
 }
 
-function buatAiDeps(aktif: WASocket, opsi: { config: AppConfig; pool: PoolDb; aiDepsBase: AiDeps; antreanChat: AntreanChat }): AiDeps {
+function buatAiDeps(
+  aktif: WASocket,
+  opsi: { config: AppConfig; pool: PoolDb; state: WaState; aiDepsBase: AiDeps; antreanChat: AntreanChat },
+): AiDeps {
   const botNomor = jidKeNomorLangsung(aktif.user?.id)
   return {
     ...opsi.aiDepsBase,
-    mulaiJapri: (limit?: number, nomorTarget?: string) =>
-      jalankanJapriKurang({
+    ingatkanDiGrup: (target) =>
+      kirimPengingatGrup({
         sock: aktif,
+        state: opsi.state,
         pool: opsi.pool,
-        aiDeps: opsi.aiDepsBase,
         antreanChat: opsi.antreanChat,
         formBaseUrl: opsi.config.formBaseUrl,
-        formSecret: opsi.config.formSecret,
-        jedaDetik: opsi.config.jedaKirimDetik,
-        maxHarian: opsi.config.maxJapriHarian,
-        limit,
-        nomorTarget,
+        grupJid: target.grupJid ?? opsi.config.grupJid,
+        limit: target.limit,
+        filter: target.filter,
         kecualiNomor: botNomor,
       }),
   }
@@ -88,23 +88,6 @@ function pasangEventWa(
   })
 }
 
-function buatSimulasiRunner(
-  getCtx: () => { sock: WASocket | null; status: string },
-  opsi: { config: AppConfig; pool: PoolDb; aiDepsBase: AiDeps; antreanChat: AntreanChat },
-) {
-  return (nomor: string) => {
-    const { sock, status } = getCtx()
-    if (!sock || status !== 'connected') {
-      return Promise.resolve({ ok: false, pesan: `WhatsApp belum tersambung (${status}).` })
-    }
-    return jalankanJapriKurang({
-      sock, pool: opsi.pool, aiDeps: opsi.aiDepsBase, antreanChat: opsi.antreanChat,
-      formBaseUrl: opsi.config.formBaseUrl, formSecret: opsi.config.formSecret,
-      jedaDetik: 0, maxHarian: opsi.config.maxJapriHarian, nomorTarget: nomor,
-    })
-  }
-}
-
 export async function mulaiWhatsApp(opsi: { config: AppConfig; pool: PoolDb }): Promise<WaController> {
   const authDir = resolve(import.meta.dir, '../../auth')
   const antreanChat = new AntreanChat()
@@ -134,7 +117,7 @@ export async function mulaiWhatsApp(opsi: { config: AppConfig; pool: PoolDb }): 
     sock = aktif
     const handlerDeps: HandlerDeps = {
       aktif, state, config: opsi.config, pool: opsi.pool,
-      aiDepsBase, aiDepsAktif: buatAiDeps(aktif, { ...opsi, aiDepsBase, antreanChat }), antreanChat,
+      aiDepsBase, aiDepsAktif: buatAiDeps(aktif, { ...opsi, state, aiDepsBase, antreanChat }), antreanChat,
     }
     pasangEventWa(aktif, handlerDeps, saveCreds, {
       setStatus: (s) => { statusSaatIni = s },
@@ -150,8 +133,5 @@ export async function mulaiWhatsApp(opsi: { config: AppConfig; pool: PoolDb }): 
       ditutup = true
       try { sock?.end(undefined) } catch { /* ignore */ }
     },
-    simulasiJapri: buatSimulasiRunner(() => ({ sock, status: statusSaatIni }), {
-      ...opsi, aiDepsBase, antreanChat,
-    }),
   }
 }
