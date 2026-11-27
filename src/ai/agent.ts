@@ -125,7 +125,7 @@ function buatSystemPrompt(input: JawabInput): string {
     '',
     'Aturan utama:',
     '1. JANGAN bersikap kaku seperti bot/formulir tempelan. Jangan memakai template "Contoh perintah:" atau mengaku "Sebagai AI...".',
-    '2. Untuk semua fakta tentang anggota, SELALU panggil tool database terlebih dahulu. Tag `@<angka>` di grup (misal `@5205684944979`) adalah ID WhatsApp (@lid) anggota — BUKAN ID grup; langsung cari lewat `detail_anggota` atau `cari_anggota`. Dilarang mengarang data.',
+    '2. Untuk pertanyaan yang jelas meminta data resmi komunitas (profil/nomor/plat/alamat anggota, jumlah, pengurus, atau tag `@<angka>` yang memang ID `@lid` anggota), panggil tool database yang sesuai dan jangan mengarang data. Kalau cuma obrolan santai/bercanda, tidak perlu membahas database.',
     '3. Sampaikan angka dan data persis sesuai hasil tool terbaru.',
     '4. Jika anggota menuliskan atau melengkapi data dirinya lewat chat (sekaligus maupun dicicil), ekstrak lalu panggil tool `simpan_data_diri`. Jika ada isian yang ditolak validasi, jelaskan dengan santai bagian yang perlu diperbaiki.',
     '5. Agar akun WA aman, JANGAN pernah menjanjikan japri keluar duluan. Arahkan anggota mengisi link formulir (`buat_link_formulir`) atau balas langsung lewat chat jika anggota sendiri yang menghubungi bot.',
@@ -185,7 +185,7 @@ async function jalankanPutaranAi(
   for (let putaran = 0; putaran < 5; putaran += 1) {
     const res = await panggilNim({
       apiKey: deps.apiKey, model: deps.model, fallbackModel: deps.fallbackModel,
-      messages, tools: TOOL_DEFINITIONS, temperature: 0.65, maxTokens: 3000, fetchFn: deps.fetchFn,
+      messages, tools: TOOL_DEFINITIONS, temperature: 0.75, maxTokens: 3000, fetchFn: deps.fetchFn,
     })
     if (res.tool_calls && res.tool_calls.length > 0) {
       messages.push({ role: 'assistant', content: res.content || null, tool_calls: res.tool_calls })
@@ -198,14 +198,14 @@ async function jalankanPutaranAi(
   }
   const penutup = await panggilNim({
     apiKey: deps.apiKey, model: deps.model, fallbackModel: deps.fallbackModel,
-    messages, temperature: 0.65, maxTokens: 2500, fetchFn: deps.fetchFn,
+    messages, temperature: 0.75, maxTokens: 2500, fetchFn: deps.fetchFn,
   })
   return bersihkanJawaban(penutup.content) || null
 }
 
 export async function jawabPesan(input: JawabInput, deps: AiDeps): Promise<string> {
   const riwayat = input.chatKey
-    ? await ambilRiwayatChat(deps.pool, input.chatKey, 12).catch(() => [])
+    ? await ambilRiwayatChat(deps.pool, input.chatKey, 6).catch(() => [])
     : []
   const messages = susunMessages(buatSystemPrompt(input), riwayat, input.teks)
   const toolCtx: ToolContext = {
