@@ -1,6 +1,6 @@
 import { ambilRiwayatChat, type PoolDb } from '../db'
 import { LABEL_KOLOM, type KolomWajib } from '../validasi'
-import { ATURAN_FORMAT_WA, formatKeWhatsApp } from './format-wa'
+import { ATURAN_FORMAT_WA, formatKeWhatsApp, PERSONA_POINT } from './format-wa'
 import { jalankanTool, TOOL_DEFINITIONS, type DbRepo, type IngatkanGrupInput, type ToolContext } from './tools'
 
 const NIM_ENDPOINT = 'https://integrate.api.nvidia.com/v1/chat/completions'
@@ -121,7 +121,7 @@ function buatSystemPrompt(input: JawabInput): string {
     ? `Grup WhatsApp${input.grupNama ? ` (${input.grupNama})` : ''}`
     : 'Chat Pribadi (DM)'
   return [
-    'Kamu adalah asisten manusiawi komunitas POINT di WhatsApp — cerdas, hangat, santai, lugas, dan bisa diandalkan, seperti admin/sekretaris grup yang akrab dengan anggota.',
+    ...PERSONA_POINT,
     '',
     'Aturan utama:',
     '1. JANGAN bersikap kaku seperti bot/formulir tempelan. Jangan memakai template "Contoh perintah:" atau mengaku "Sebagai AI...".',
@@ -185,7 +185,7 @@ async function jalankanPutaranAi(
   for (let putaran = 0; putaran < 5; putaran += 1) {
     const res = await panggilNim({
       apiKey: deps.apiKey, model: deps.model, fallbackModel: deps.fallbackModel,
-      messages, tools: TOOL_DEFINITIONS, temperature: 0.4, maxTokens: 3000, fetchFn: deps.fetchFn,
+      messages, tools: TOOL_DEFINITIONS, temperature: 0.65, maxTokens: 3000, fetchFn: deps.fetchFn,
     })
     if (res.tool_calls && res.tool_calls.length > 0) {
       messages.push({ role: 'assistant', content: res.content || null, tool_calls: res.tool_calls })
@@ -198,7 +198,7 @@ async function jalankanPutaranAi(
   }
   const penutup = await panggilNim({
     apiKey: deps.apiKey, model: deps.model, fallbackModel: deps.fallbackModel,
-    messages, temperature: 0.4, maxTokens: 2500, fetchFn: deps.fetchFn,
+    messages, temperature: 0.65, maxTokens: 2500, fetchFn: deps.fetchFn,
   })
   return bersihkanJawaban(penutup.content) || null
 }
