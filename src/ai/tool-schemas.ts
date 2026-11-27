@@ -37,13 +37,13 @@ export const TOOL_DEFINITIONS = [
     function: {
       name: 'cari_anggota',
       description:
-        'Mencari anggota berdasarkan nama lengkap, nama kontak, nomor WA, plat nomor, alamat, atau tipe/warna kendaraan.',
+        'Mencari anggota berdasarkan nama lengkap, nama kontak, nomor WA, ID mention WhatsApp (@<angka> atau @lid), plat nomor, alamat, atau tipe/warna kendaraan.',
       parameters: {
         type: 'object',
         properties: {
           kata_kunci: {
             type: 'string',
-            description: 'Kata kunci pencarian (nama, nomor HP, plat, alamat, atau nama mobil/motor).',
+            description: 'Kata kunci pencarian (nama, nomor HP, tag @mention/@lid, plat, alamat, atau kendaraan).',
           },
         },
         required: ['kata_kunci'],
@@ -54,13 +54,13 @@ export const TOOL_DEFINITIONS = [
     type: 'function' as const,
     function: {
       name: 'detail_anggota',
-      description: 'Melihat detail profil lengkap satu anggota berdasarkan nomor HP atau nama.',
+      description: 'Melihat detail profil lengkap satu anggota berdasarkan nomor HP, tag @mention/@lid WhatsApp, atau nama.',
       parameters: {
         type: 'object',
         properties: {
           nomor_atau_nama: {
             type: 'string',
-            description: 'Nomor telepon/WA atau nama anggota.',
+            description: 'Nomor telepon/WA, tag @mention (misal @5205684944979 atau ...@lid), atau nama anggota.',
           },
         },
         required: ['nomor_atau_nama'],

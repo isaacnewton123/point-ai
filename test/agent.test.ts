@@ -35,6 +35,8 @@ function buatMockRepo(): { repo: DbRepo; lastSavedNomor: () => string | null } {
       daftarBelumLengkap: async () => [],
       cariAnggota: async () => [sampleRow],
       detailAnggota: async () => sampleRow,
+      detailAnggotaByWaId: async (_pool, waId) => (waId === '5205684944979@lid' ? { ...sampleRow, wa_id: waId, nama_lengkap: 'Hadi Ketum' } : null),
+      cariNomorDariWaId: async (_pool, waId) => (waId === '5205684944979@lid' ? sampleRow.nomor : null),
       riwayatPeristiwa: async () => [],
       simpanDataAnggota: async (_pool, nomor) => { savedNomor = nomor; return { ...sampleRow, nomor } },
       daftarPendaftar: async () => [samplePendaftar],
@@ -164,4 +166,16 @@ test('buatSambutanMasuk mengabarkan aktif otomatis tanpa memaksa link jika dariP
   )
   expect(teks).toContain('@6281234567890')
   expect(teks).not.toContain(linkFormulir)
+})
+
+test('detail_anggota mengenali tag @mention / @lid lewat kolom wa_id', async () => {
+  const { repo } = buatMockRepo()
+  const ctx = buatCtx(true, repo)
+  const hasil = JSON.parse(await jalankanTool('detail_anggota', { nomor_atau_nama: '@5205684944979' }, ctx)) as {
+    ditemukan: boolean
+    anggota?: { nama_lengkap?: string; nomor?: string }
+  }
+  expect(hasil.ditemukan).toBe(true)
+  expect(hasil.anggota?.nama_lengkap).toBe('Hadi Ketum')
+  expect(hasil.anggota?.nomor).toBe('+628111111111')
 })

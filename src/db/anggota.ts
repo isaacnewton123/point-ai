@@ -68,9 +68,10 @@ export async function cariAnggota(pool: PoolDb, kataKunci: string, limit = 15): 
     where coalesce(nama_lengkap, '') ilike $1
       or coalesce(nama_kontak, '') ilike $1
       or nomor ilike $1
+      or coalesce(wa_id, '') ilike $1
       or coalesce(alamat, '') ilike $1
       or coalesce(tipe_warna_unit, '') ilike $1
-      or ($2::boolean and regexp_replace(nomor, '\\D', '', 'g') like $3)
+      or ($2::boolean and (regexp_replace(nomor, '\\D', '', 'g') like $3 or coalesce(wa_id, '') like $3))
       or ($4::boolean and replace(upper(coalesce(plat, '')), ' ', '') like $5)
     order by aktif_di_grup desc, coalesce(nama_lengkap, nama_kontak, nomor) asc
     limit $6
@@ -82,6 +83,11 @@ export async function cariAnggota(pool: PoolDb, kataKunci: string, limit = 15): 
 
 export async function detailAnggota(pool: PoolDb, nomor: string): Promise<AnggotaRow | null> {
   const res = await pool.query<AnggotaRow>(`${SELECT_ANGGOTA} where nomor = $1`, [nomor])
+  return res.rows[0] ?? null
+}
+
+export async function detailAnggotaByWaId(pool: PoolDb, waId: string): Promise<AnggotaRow | null> {
+  const res = await pool.query<AnggotaRow>(`${SELECT_ANGGOTA} where wa_id = $1 limit 1`, [waId])
   return res.rows[0] ?? null
 }
 

@@ -125,7 +125,7 @@ function buatSystemPrompt(input: JawabInput): string {
     '',
     'Aturan utama:',
     '1. JANGAN bersikap kaku seperti bot/formulir tempelan. Jangan memakai template "Contoh perintah:" atau mengaku "Sebagai AI...".',
-    '2. Untuk semua fakta tentang anggota, SELALU panggil tool database terlebih dahulu. Dilarang keras mengarang angka, nama, nomor, atau status.',
+    '2. Untuk semua fakta tentang anggota, SELALU panggil tool database terlebih dahulu. Tag `@<angka>` di grup (misal `@5205684944979`) adalah ID WhatsApp (@lid) anggota — BUKAN ID grup; langsung cari lewat `detail_anggota` atau `cari_anggota`. Dilarang mengarang data.',
     '3. Sampaikan angka dan data persis sesuai hasil tool terbaru.',
     '4. Jika anggota menuliskan atau melengkapi data dirinya lewat chat (sekaligus maupun dicicil), ekstrak lalu panggil tool `simpan_data_diri`. Jika ada isian yang ditolak validasi, jelaskan dengan santai bagian yang perlu diperbaiki.',
     '5. Agar akun WA aman, JANGAN pernah menjanjikan japri keluar duluan. Arahkan anggota mengisi link formulir (`buat_link_formulir`) atau balas langsung lewat chat jika anggota sendiri yang menghubungi bot.',

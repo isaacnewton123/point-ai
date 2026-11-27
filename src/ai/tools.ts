@@ -1,8 +1,10 @@
 import {
   cariAnggota,
+  cariNomorDariWaId,
   daftarBelumLengkap,
   daftarPendaftar,
   detailAnggota,
+  detailAnggotaByWaId,
   ringkasanAnggota,
   riwayatPeristiwa,
   setujuiPendaftar,
@@ -31,6 +33,8 @@ export type DbRepo = {
   daftarBelumLengkap: (pool: PoolDb, filter?: 'semua' | 'sebagian' | 'kosong_total') => Promise<AnggotaRow[]>
   cariAnggota: (pool: PoolDb, kataKunci: string, limit?: number) => Promise<AnggotaRow[]>
   detailAnggota: (pool: PoolDb, nomor: string) => Promise<AnggotaRow | null>
+  detailAnggotaByWaId: (pool: PoolDb, waId: string) => Promise<AnggotaRow | null>
+  cariNomorDariWaId: (pool: PoolDb, waId: string) => Promise<string | null>
   simpanDataAnggota: (
     pool: PoolDb,
     nomor: string,
@@ -44,7 +48,7 @@ export type DbRepo = {
 }
 
 export const defaultDbRepo: DbRepo = {
-  ringkasanAnggota, daftarBelumLengkap, cariAnggota, detailAnggota,
+  ringkasanAnggota, daftarBelumLengkap, cariAnggota, detailAnggota, detailAnggotaByWaId, cariNomorDariWaId,
   simpanDataAnggota, riwayatPeristiwa, daftarPendaftar, setujuiPendaftar, tolakPendaftar,
 }
 
@@ -76,8 +80,21 @@ function ringkasBaris(row: AnggotaRow) {
   }
 }
 
+function kandidatWaId(raw: string): string | null {
+  const bersih = raw.trim().replace(/^@/, '')
+  if (!bersih) return null
+  if (bersih.endsWith('@lid')) return bersih
+  return /^\d{8,20}$/.test(bersih) ? `${bersih}@lid` : null
+}
+
+function bersihkanKataCari(raw: string): string {
+  const t = raw.trim()
+  return /^@\d{8,20}(?:@lid)?$/.test(t) ? t.slice(1).replace(/@lid$/, '') : t
+}
+
 async function handleCariAnggota(args: Record<string, unknown>, ctx: ToolContext, db: DbRepo) {
-  const kataKunci = typeof args.kata_kunci === 'string' ? args.kata_kunci.trim() : ''
+  const mentah = typeof args.kata_kunci === 'string' ? args.kata_kunci : ''
+  const kataKunci = bersihkanKataCari(mentah)
   if (!kataKunci) return JSON.stringify({ ok: false, alasan: 'Kata kunci pencarian kosong.' })
   const rows = await db.cariAnggota(ctx.pool, kataKunci, 15)
   return JSON.stringify({ jumlah: rows.length, hasil: rows.map(ringkasBaris) })
@@ -86,12 +103,21 @@ async function handleCariAnggota(args: Record<string, unknown>, ctx: ToolContext
 async function handleDetailAnggota(args: Record<string, unknown>, ctx: ToolContext, db: DbRepo) {
   const target = typeof args.nomor_atau_nama === 'string' ? args.nomor_atau_nama.trim() : ''
   if (!target) return JSON.stringify({ ok: false, alasan: 'Nomor atau nama anggota wajib diisi.' })
+  const lid = kandidatWaId(target)
+  if (lid && (target.startsWith('@') || target.endsWith('@lid'))) {
+    const byLid = await db.detailAnggotaByWaId(ctx.pool, lid)
+    if (byLid) return JSON.stringify({ ditemukan: true, anggota: ringkasBaris(byLid) })
+  }
   const nomorNorm = normalisasiNomor(target)
   if (nomorNorm) {
     const exact = await db.detailAnggota(ctx.pool, nomorNorm)
     if (exact) return JSON.stringify({ ditemukan: true, anggota: ringkasBaris(exact) })
   }
-  const matches = await db.cariAnggota(ctx.pool, target, 5)
+  if (lid) {
+    const byLid = await db.detailAnggotaByWaId(ctx.pool, lid)
+    if (byLid) return JSON.stringify({ ditemukan: true, anggota: ringkasBaris(byLid) })
+  }
+  const matches = await db.cariAnggota(ctx.pool, bersihkanKataCari(target), 5)
   if (matches.length === 0) {
     return JSON.stringify({ ditemukan: false, alasan: `Tidak ditemukan anggota untuk "${target}".` })
   }
@@ -102,11 +128,18 @@ async function handleDetailAnggota(args: Record<string, unknown>, ctx: ToolConte
   })
 }
 
+async function selesaikanTargetNomor(args: Record<string, unknown>, ctx: ToolContext, db: DbRepo) {
+  if (!ctx.isAdmin || typeof args.nomor_target !== 'string' || !args.nomor_target.trim()) {
+    return ctx.senderNomor
+  }
+  const norm = normalisasiNomor(args.nomor_target)
+  if (norm) return norm
+  const lid = kandidatWaId(args.nomor_target)
+  return lid ? db.cariNomorDariWaId(ctx.pool, lid) : null
+}
+
 async function handleSimpanDataDiri(args: Record<string, unknown>, ctx: ToolContext, db: DbRepo) {
-  const targetNomor =
-    ctx.isAdmin && typeof args.nomor_target === 'string' && args.nomor_target.trim()
-      ? normalisasiNomor(args.nomor_target)
-      : ctx.senderNomor
+  const targetNomor = await selesaikanTargetNomor(args, ctx, db)
   if (!targetNomor) {
     return JSON.stringify({
       ok: false,
