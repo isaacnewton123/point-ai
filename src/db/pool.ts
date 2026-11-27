@@ -6,6 +6,7 @@ export type PoolDb = pg.Pool
 
 export type AnggotaRow = {
   nomor: string
+  wa_id: string | null
   nama_kontak: string | null
   nama_lengkap: string | null
   tanggal_lahir: string | null
@@ -44,6 +45,7 @@ export type PesanChatRow = {
 export const SELECT_ANGGOTA = `
   select
     nomor,
+    wa_id,
     nama_kontak,
     nama_lengkap,
     to_char(tanggal_lahir, 'YYYY-MM-DD') as tanggal_lahir,

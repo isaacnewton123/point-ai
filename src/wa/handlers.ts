@@ -105,7 +105,7 @@ export async function tanganiPerubahanPeserta(
       const altJid = typeof peserta === 'string' ? null : (peserta.phoneNumber ?? null)
       const bersihJid = bersihkanJidUser(rawId) ?? rawId
       if (apakahJidBot(bersihJid, deps.aktif)) continue
-      const nomor = await selesaikanNomorPeserta(deps.aktif, deps.state, bersihJid, altJid, ev.id)
+      const nomor = await selesaikanNomorPeserta(deps.aktif, deps.state, bersihJid, altJid, ev.id, deps.pool)
       if (ev.action === 'remove') await prosesPesertaKeluar(deps, ev.id, bersihJid, nomor)
       else await prosesPesertaMasuk(deps, ev.id, bersihJid, nomor)
     }
@@ -188,6 +188,7 @@ async function prosesPesanMasuk(
     pengirimJid,
     isGroup ? key.participantAlt : key.remoteJidAlt,
     isGroup ? jid : null,
+    deps.pool,
   )
 
   const meta = isGroup ? await muatMetadataGrup(deps.aktif, deps.state, jid) : null

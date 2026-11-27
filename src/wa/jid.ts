@@ -1,4 +1,5 @@
 import type { GroupMetadata, WAMessage, WASocket } from '@whiskeysockets/baileys'
+import { cariNomorDariWaId, simpanWaIdAnggota, type PoolDb } from '../db'
 import { normalisasiNomor } from '../validasi'
 
 export type WaState = {
@@ -85,11 +86,15 @@ export async function selesaikanNomorPeserta(
   jid: string,
   altJid?: string | null,
   grupJid?: string | null,
+  pool?: PoolDb,
 ): Promise<string | null> {
   const langsung = jidKeNomorLangsung(altJid) ?? jidKeNomorLangsung(jid)
   const lid = bersihkanJidUser(jid)
   if (langsung) {
-    if (lid && lid.endsWith('@lid')) state.lidKeNomor.set(lid, langsung)
+    if (lid && lid.endsWith('@lid')) {
+      state.lidKeNomor.set(lid, langsung)
+      if (pool) void simpanWaIdAnggota(pool, langsung, lid)
+    }
     return langsung
   }
   if (lid && state.lidKeNomor.has(lid)) return state.lidKeNomor.get(lid)!
@@ -98,7 +103,15 @@ export async function selesaikanNomorPeserta(
     const dariStore = jidKeNomorLangsung(pn)
     if (dariStore) {
       state.lidKeNomor.set(lid, dariStore)
+      if (pool) void simpanWaIdAnggota(pool, dariStore, lid)
       return dariStore
+    }
+    if (pool) {
+      const dariDb = await cariNomorDariWaId(pool, lid).catch(() => null)
+      if (dariDb) {
+        state.lidKeNomor.set(lid, dariDb)
+        return dariDb
+      }
     }
   }
   if (grupJid) {

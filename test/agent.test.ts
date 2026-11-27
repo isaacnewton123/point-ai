@@ -5,7 +5,7 @@ import type { AnggotaRow, PendaftarRow, PoolDb } from '../src/db'
 
 function buatSampleRow(): AnggotaRow {
   return {
-    nomor: '+628111111111', nama_kontak: 'Tester', nama_lengkap: 'Tester Satu',
+    nomor: '+628111111111', wa_id: null, nama_kontak: 'Tester', nama_lengkap: 'Tester Satu',
     tanggal_lahir: '1990-01-01', alamat: 'Perum Mawar No 1 Karawang',
     plat: 'T1234AA', tipe_warna_unit: 'Brio Putih', status: 'LENGKAP',
     aktif_di_grup: true, kekurangan: [], diperbarui_pada: new Date().toISOString(),

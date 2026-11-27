@@ -85,6 +85,22 @@ export async function detailAnggota(pool: PoolDb, nomor: string): Promise<Anggot
   return res.rows[0] ?? null
 }
 
+export async function cariNomorDariWaId(pool: PoolDb, waId: string): Promise<string | null> {
+  const res = await pool.query<{ nomor: string }>(`select nomor from anggota where wa_id = $1 limit 1`, [waId])
+  return res.rows[0]?.nomor ?? null
+}
+
+export async function simpanWaIdAnggota(pool: PoolDb, nomor: string, waId: string): Promise<void> {
+  try {
+    await pool.query(
+      `update anggota set wa_id = $2, diperbarui_pada = now() where nomor = $1 and (wa_id is null or wa_id <> $2)`,
+      [nomor, waId],
+    )
+  } catch {
+    // Abaikan bentrok unique index jika wa_id sudah terpasang
+  }
+}
+
 async function pastikanBarisAnggota(
   klien: pg.PoolClient,
   nomor: string,
@@ -135,7 +151,7 @@ async function hitungStatusAkhir(klien: pg.PoolClient, nomor: string): Promise<A
     `
     update anggota set kekurangan = $2, status = $3, diperbarui_pada = now()
     where nomor = $1
-    returning nomor, nama_kontak, nama_lengkap, to_char(tanggal_lahir, 'YYYY-MM-DD') as tanggal_lahir,
+    returning nomor, wa_id, nama_kontak, nama_lengkap, to_char(tanggal_lahir, 'YYYY-MM-DD') as tanggal_lahir,
       alamat, plat, tipe_warna_unit, status, aktif_di_grup, kekurangan, diperbarui_pada::text as diperbarui_pada
     `,
     [nomor, kekurangan, statusBaru],

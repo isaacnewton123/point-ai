@@ -48,7 +48,7 @@ function susunTeksPengingat(
 ): { teks: string; mentions: string[] } {
   const mentions: string[] = []
   const baris = kandidat.map((a, idx) => {
-    const jid = nomorKeJid.get(a.nomor)
+    const jid = nomorKeJid.get(a.nomor) ?? bersihkanJidUser(a.wa_id) ?? undefined
     if (jid && !mentions.includes(jid)) mentions.push(jid)
     return formatBarisAnggota(idx, a, jid)
   })

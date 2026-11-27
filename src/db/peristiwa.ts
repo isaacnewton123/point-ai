@@ -5,7 +5,7 @@ import type { PendaftarRow } from './pendaftar'
 import { SELECT_ANGGOTA, type AnggotaRow, type PeristiwaRow, type PoolDb } from './pool'
 
 const RETURNING_ANGGOTA = `
-  nomor, nama_kontak, nama_lengkap,
+  nomor, wa_id, nama_kontak, nama_lengkap,
   to_char(tanggal_lahir, 'YYYY-MM-DD') as tanggal_lahir,
   alamat, plat, tipe_warna_unit, status, aktif_di_grup, kekurangan,
   diperbarui_pada::text as diperbarui_pada
@@ -15,14 +15,15 @@ async function sisipAnggotaBaru(
   klien: pg.PoolClient,
   nomor: string,
   namaKontak?: string | null,
+  waId?: string | null,
 ): Promise<AnggotaRow> {
   const res = await klien.query<AnggotaRow>(
     `
-    insert into anggota (nomor, nama_kontak, status, aktif_di_grup, kekurangan)
-    values ($1, $2, 'DATA_KURANG', true, $3)
+    insert into anggota (nomor, wa_id, nama_kontak, status, aktif_di_grup, kekurangan)
+    values ($1, $2, $3, 'DATA_KURANG', true, $4)
     returning ${RETURNING_ANGGOTA}
     `,
-    [nomor, namaKontak ?? null, [...KOLOM_WAJIB]],
+    [nomor, waId ?? null, namaKontak ?? null, [...KOLOM_WAJIB]],
   )
   return res.rows[0]
 }
@@ -31,6 +32,7 @@ async function aktifkanAnggotaLama(
   klien: pg.PoolClient,
   lama: AnggotaRow,
   namaKontak?: string | null,
+  waId?: string | null,
 ): Promise<AnggotaRow> {
   const kekurangan = hitungKekurangan({
     nama_lengkap: lama.nama_lengkap,
@@ -43,12 +45,14 @@ async function aktifkanAnggotaLama(
   const res = await klien.query<AnggotaRow>(
     `
     update anggota
-    set aktif_di_grup = true, nama_kontak = coalesce(nama_kontak, $2),
-        kekurangan = $3, status = $4, diperbarui_pada = now()
+    set aktif_di_grup = true,
+        wa_id = coalesce($2, wa_id),
+        nama_kontak = coalesce(nama_kontak, $3),
+        kekurangan = $4, status = $5, diperbarui_pada = now()
     where nomor = $1
     returning ${RETURNING_ANGGOTA}
     `,
-    [lama.nomor, namaKontak ?? null, kekurangan, statusBaru],
+    [lama.nomor, waId ?? null, namaKontak ?? null, kekurangan, statusBaru],
   )
   return res.rows[0]
 }
@@ -57,15 +61,17 @@ async function promosikanDariPendaftar(
   klien: pg.PoolClient,
   pending: PendaftarRow,
   namaKontak?: string | null,
+  waId?: string | null,
 ): Promise<AnggotaRow> {
   const res = await klien.query<AnggotaRow>(
     `
     insert into anggota (
-      nomor, nama_kontak, nama_lengkap, tanggal_lahir, alamat, plat, tipe_warna_unit,
+      nomor, wa_id, nama_kontak, nama_lengkap, tanggal_lahir, alamat, plat, tipe_warna_unit,
       status, aktif_di_grup, kekurangan
     )
-    values ($1, $2, $3, $4::date, $5, $6, $7, 'LENGKAP', true, '{}')
+    values ($1, $2, $3, $4, $5::date, $6, $7, $8, 'LENGKAP', true, '{}')
     on conflict (nomor) do update set
+      wa_id = coalesce(excluded.wa_id, anggota.wa_id),
       nama_kontak = coalesce(anggota.nama_kontak, excluded.nama_kontak),
       nama_lengkap = excluded.nama_lengkap,
       tanggal_lahir = excluded.tanggal_lahir,
@@ -80,6 +86,7 @@ async function promosikanDariPendaftar(
     `,
     [
       pending.nomor,
+      waId ?? null,
       namaKontak ?? null,
       pending.nama_lengkap,
       pending.tanggal_lahir,
@@ -113,11 +120,12 @@ export async function tandaiMasukGrup(
       [nomor],
     )
     const pending = pendingRes.rows[0]
+    const lidClean = waId?.endsWith('@lid') ? waId : null
     const anggota = pending
-      ? await promosikanDariPendaftar(klien, pending, namaKontak)
+      ? await promosikanDariPendaftar(klien, pending, namaKontak, lidClean)
       : baru
-        ? await sisipAnggotaBaru(klien, nomor, namaKontak)
-        : await aktifkanAnggotaLama(klien, ada.rows[0], namaKontak)
+        ? await sisipAnggotaBaru(klien, nomor, namaKontak, lidClean)
+        : await aktifkanAnggotaLama(klien, ada.rows[0], namaKontak, lidClean)
 
     await klien.query(
       `insert into peristiwa_keanggotaan (terjadi_pada, nomor, wa_id, jenis, impor_id)
