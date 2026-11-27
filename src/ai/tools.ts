@@ -1,4 +1,5 @@
 import {
+  ambilStrukturOrganisasi,
   cariAnggota,
   cariNomorDariWaId,
   daftarBelumLengkap,
@@ -12,6 +13,7 @@ import {
   tolakPendaftar,
   type AnggotaRow,
   type PendaftarRow,
+  type PengurusRow,
   type PeristiwaRow,
   type PoolDb,
   type RingkasanDb,
@@ -45,11 +47,12 @@ export type DbRepo = {
   daftarPendaftar: (pool: PoolDb, status?: StatusPendaftar, limit?: number) => Promise<PendaftarRow[]>
   setujuiPendaftar: (pool: PoolDb, nomor: string) => Promise<{ ok: boolean; anggota?: AnggotaRow; alasan?: string }>
   tolakPendaftar: (pool: PoolDb, nomor: string) => Promise<boolean>
+  ambilStrukturOrganisasi: (pool: PoolDb) => Promise<PengurusRow[]>
 }
 
 export const defaultDbRepo: DbRepo = {
   ringkasanAnggota, daftarBelumLengkap, cariAnggota, detailAnggota, detailAnggotaByWaId, cariNomorDariWaId,
-  simpanDataAnggota, riwayatPeristiwa, daftarPendaftar, setujuiPendaftar, tolakPendaftar,
+  simpanDataAnggota, riwayatPeristiwa, daftarPendaftar, setujuiPendaftar, tolakPendaftar, ambilStrukturOrganisasi,
 }
 
 export type IngatkanGrupInput = {
@@ -217,6 +220,10 @@ export async function jalankanTool(nama: string, args: Record<string, unknown>, 
   }
   if (nama === 'setujui_pendaftar') return handlePendaftarAksi('setujui', args, ctx, db)
   if (nama === 'tolak_pendaftar') return handlePendaftarAksi('tolak', args, ctx, db)
+  if (nama === 'struktur_organisasi') {
+    const rows = await db.ambilStrukturOrganisasi(ctx.pool)
+    return JSON.stringify({ jumlah: rows.length, pengurus: rows })
+  }
   if (nama === 'ingatkan_di_grup') return handleIngatkanDiGrup(args, ctx)
   return JSON.stringify({ ok: false, alasan: `Tool "${nama}" tidak dikenal.` })
 }

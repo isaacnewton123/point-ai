@@ -175,6 +175,15 @@ export const TOOL_DEFINITIONS = [
   {
     type: 'function' as const,
     function: {
+      name: 'struktur_organisasi',
+      description:
+        'Mengambil daftar resmi struktur organisasi/pengurus komunitas POINT (Ketua Umum, Wakil Ketua, Sekretaris, Bendahara, Multimedia, URC) beserta nama, nomor WA, dan tugasnya.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
       name: 'ingatkan_di_grup',
       description:
         'KHUSUS PENGURUS/ADMIN: mengirim 1 pesan pengingat di grup WhatsApp dengan @mention anggota yang datanya masih kurang beserta link formulir resmi (aman, tanpa japri keluar/cold DM).',

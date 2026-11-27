@@ -42,6 +42,9 @@ function buatMockRepo(): { repo: DbRepo; lastSavedNomor: () => string | null } {
       daftarPendaftar: async () => [samplePendaftar],
       setujuiPendaftar: async (_pool, nomor) => ({ ok: true, anggota: { ...sampleRow, nomor } }),
       tolakPendaftar: async () => true,
+      ambilStrukturOrganisasi: async () => [
+        { urutan: 1, jabatan: 'Ketua Umum', nomor: '+6287733606035', nama_panggilan: 'Pak Hadi', nama_lengkap: 'Muhammad Syamsul Hadi', wa_id: '5205684944979@lid', tugas: 'Memimpin organisasi' },
+      ],
     },
   }
 }
@@ -178,4 +181,15 @@ test('detail_anggota mengenali tag @mention / @lid lewat kolom wa_id', async () 
   expect(hasil.ditemukan).toBe(true)
   expect(hasil.anggota?.nama_lengkap).toBe('Hadi Ketum')
   expect(hasil.anggota?.nomor).toBe('+628111111111')
+})
+
+test('struktur_organisasi mengembalikan daftar pengurus POINT', async () => {
+  const { repo } = buatMockRepo()
+  const ctx = buatCtx(false, repo)
+  const hasil = JSON.parse(await jalankanTool('struktur_organisasi', {}, ctx)) as {
+    jumlah: number
+    pengurus: { jabatan: string; nama_lengkap: string }[]
+  }
+  expect(hasil.jumlah).toBe(1)
+  expect(hasil.pengurus[0]?.jabatan).toBe('Ketua Umum')
 })
